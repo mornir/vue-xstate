@@ -1,38 +1,95 @@
 <template>
-  <h1>Search</h1>
-  <input type="text" v-model="searchText" />
+  <p>
+    Result: <strong>{{ state.context.result }}</strong>
+  </p>
+  <p>
+    State: <strong>{{ state.value }}</strong>
+  </p>
+  <input
+    type="text"
+    @input="send({ type: 'TYPE', data: $event.target.value })"
+    :value="state.context.searchText"
+  />
+
   <ul>
-    <li v-for="item in filteredItems" :key="item">{{ item }}</li>
+    <li v-for="item in state.context.items" :key="item">{{ item }}</li>
   </ul>
 </template>
 
 <script>
-import { createMachine } from "xstate"
+import { assign, createMachine, send, actions } from "xstate"
+import { useMachine } from "@xstate/vue"
 import { computed, ref } from "vue"
 
-const searchMachine = createMachine({
-  id: "search",
-  initial: "idle",
-  states: {
-    idle: {},
-    searching: {},
+const { cancel } = actions
+
+const DELAY = 1000
+
+const searchMachine = createMachine(
+  {
+    id: "search",
+    initial: "idle",
+    context: {
+      searchText: "",
+      result: undefined,
+    },
+    on: {
+      TYPE: {
+        actions: ["setSearchText", "cancelSearchEvent", "sendSearchEvent"],
+      },
+      SEARCH: {
+        target: ".searching",
+      },
+    },
+    states: {
+      idle: {},
+      searching: {
+        invoke: {
+          src: "search",
+          onDone: {
+            actions: "setResult",
+            target: "idle",
+          },
+          onError: {
+            target: "idle",
+          },
+        },
+      },
+    },
   },
-})
+  {
+    actions: {
+      setSearchText: assign({
+        searchText: (_, event) => event.data,
+      }),
+      sendSearchEvent: send(
+        { type: "SEARCH" },
+        { id: "searchEvent", delay: DELAY }
+      ),
+      setResult: assign({
+        result: (_, event) => event.data,
+      }),
+      cancelSearchEvent: cancel("searchEvent"),
+    },
+    services: {
+      async search() {
+        return new Promise((resolve, reject) => {
+          setTimeout(() => {
+            resolve(Math.random())
+          }, 1000)
+        })
+      },
+    },
+  }
+)
+
 export default {
   name: "Search",
   setup() {
-    const searchText = ref("")
-    const items = ["Max", "Patric", "Sophie", "Peter"]
-
-    const filteredItems = computed(() => {
-      return items.filter((item) =>
-        item.toLowerCase().startsWith(searchText.value)
-      )
-    })
-
+    const { state, send } = useMachine(searchMachine)
     return {
-      filteredItems,
-      searchText,
+      state,
+      send,
     }
   },
 }
