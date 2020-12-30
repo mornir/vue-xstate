@@ -1,8 +1,5 @@
 <template>
   <p>
-    Result: <strong>{{ state.context.result }}</strong>
-  </p>
-  <p>
     State: <strong>{{ state.value }}</strong>
   </p>
   <input
@@ -12,7 +9,9 @@
   />
 
   <ul>
-    <li v-for="item in state.context.items" :key="item">{{ item }}</li>
+    <li v-for="movie in state.context.results" :key="movie.id">
+      {{ movie.title }}
+    </li>
   </ul>
 </template>
 
@@ -25,14 +24,16 @@ const { cancel } = actions
 
 const DELAY = 1000
 
-type Context = {
-  searchText: string
-  result: number | null
+type Movie = {
+  title: string
 }
 
-type Event =
-  | { type: "TYPE"; data: string }
-  | { type: "SEARCH"; data: undefined }
+type Context = {
+  searchText: string
+  results: Movie[]
+}
+
+type Event = { type: "TYPE"; data: string } | { type: "SEARCH"; data: [] }
 
 const searchMachine = createMachine<Context, Event>(
   {
@@ -40,7 +41,7 @@ const searchMachine = createMachine<Context, Event>(
     initial: "idle",
     context: {
       searchText: "",
-      result: null,
+      results: [],
     },
     on: {
       TYPE: {
@@ -76,17 +77,20 @@ const searchMachine = createMachine<Context, Event>(
         { id: "searchEvent", delay: DELAY }
       ),
       setResult: assign({
-        result: (_, event) => +event.data,
+        results: (_, event) => event.data,
       }),
       cancelSearchEvent: cancel("searchEvent"),
     },
     services: {
-      async search(): Promise<number> {
-        return new Promise((resolve, reject) => {
-          setTimeout(() => {
-            resolve(Math.random())
-          }, 1000)
-        })
+      async search({ searchText }, event): Promise<Movie[]> {
+        if (!searchText) return []
+
+        const response = await fetch(
+          "https://api.themoviedb.org/3/search/movie?api_key=f06a9a69ee7572f528b4781f591fb0f2&language=en-USpage=1&include_adult=false&query=" +
+            searchText
+        )
+        const data = await response.json()
+        return data.results
       },
     },
   }
