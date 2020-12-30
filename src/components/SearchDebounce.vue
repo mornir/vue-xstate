@@ -16,7 +16,7 @@
   </ul>
 </template>
 
-<script>
+<script lang="ts">
 import { assign, createMachine, send, actions } from "xstate"
 import { useMachine } from "@xstate/vue"
 import { computed, ref } from "vue"
@@ -25,13 +25,22 @@ const { cancel } = actions
 
 const DELAY = 1000
 
-const searchMachine = createMachine(
+type Context = {
+  searchText: string
+  result: number | null
+}
+
+type Event =
+  | { type: "TYPE"; data: string }
+  | { type: "SEARCH"; data: undefined }
+
+const searchMachine = createMachine<Context, Event>(
   {
     id: "search",
     initial: "idle",
     context: {
       searchText: "",
-      result: undefined,
+      result: null,
     },
     on: {
       TYPE: {
@@ -67,12 +76,12 @@ const searchMachine = createMachine(
         { id: "searchEvent", delay: DELAY }
       ),
       setResult: assign({
-        result: (_, event) => event.data,
+        result: (_, event) => +event.data,
       }),
       cancelSearchEvent: cancel("searchEvent"),
     },
     services: {
-      async search() {
+      async search(): Promise<number> {
         return new Promise((resolve, reject) => {
           setTimeout(() => {
             resolve(Math.random())
