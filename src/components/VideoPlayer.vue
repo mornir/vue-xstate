@@ -6,7 +6,7 @@
     ref="video"
     :src="srcUrl"
   ></video>
-  <h1>State: {{ state.value }}</h1>
+  <p>State: {{ state.value }}</p>
   <br />
   <button type="button" @click="send('PLAY')">Play</button>
   <button type="button" @click="send('PAUSE')">Pause</button>
